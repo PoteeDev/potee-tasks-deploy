@@ -1,0 +1,57 @@
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: stripprefix
+  namespace: potee
+spec:
+  stripPrefix:
+    prefixes:
+      - /ovpn
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: auth-middleware
+  namespace: potee
+spec:
+  basicAuth:
+    removeHeader: true
+    secret: basic-auth
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: ingress
+  namespace: potee
+spec:
+  routes:
+    - match: Host(`ovpn.localhost`)
+      kind: Rule
+      services:
+        - kind: Service
+          name: ovpn-admin-svc
+          port: 8080
+      middlewares:
+        - name: stripprefix
+
+    - match: PathPrefix(`/`)
+      kind: Rule
+      services:
+        - kind: Service
+          name: app-svc
+          port: 8080
+    
+    - match: Host(`minio.localhost`)
+      kind: Rule
+      services:
+        - name: minio
+          port: 9000
+
+    - match: Host(`console.localhost`)
+      kind: Rule
+      services:
+        - name: minio
+          port: 9001

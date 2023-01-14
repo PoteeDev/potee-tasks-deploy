@@ -1,0 +1,46 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k3s-api
+  namespace: potee
+spec:
+  selector:
+    matchLabels:
+      app: k3s-api
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: k3s-api
+    spec:
+      containers:
+        - name: k3s-api
+          image: explabs/k3s-api:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          env:
+            - name: SRV_KEY
+              value: secret
+            - name: MINIO_ACCESS_KEY
+              value: "minio"
+            - name: MINIO_SECRET_KEY
+              value: "minio123"
+      serviceAccountName: task-manager
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: k3s-api
+  namespace: potee
+  labels:
+    app: k3s-api
+spec:
+  ports:
+    - port: 3000
+      protocol: TCP
+  selector:
+    app: k3s-api
+

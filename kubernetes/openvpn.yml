@@ -1,0 +1,154 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openvpn-env
+  namespace: potee
+data:
+  OVPN_SERVER_NET: "192.168.100.0"
+  OVPN_SERVER_MASK: "255.255.255.0"
+  OVPN_PASSWD_AUTH: "true"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ovpn-admin-env
+  namespace: potee
+data:
+  OVPN_DEBUG: "true"
+  OVPN_VERBOSE: "true"
+  OVPN_NETWORK: "192.168.100.0/24"
+  OVPN_CCD: "true"
+  OVPN_CCD_PATH: "/mnt/ccd"
+  EASYRSA_PATH: "/mnt/easyrsa"
+  OVPN_SERVER: "192.168.0.20:7777:tcp"
+  OVPN_INDEX_PATH: "/mnt/easyrsa/pki/index.txt"
+  OVPN_AUTH: "true"
+  OVPN_AUTH_DB_PATH: "/mnt/easyrsa/pki/users.db"
+  OVPN_MGMT: "localhost:8989"
+  LOG_LEVEL: "debug"
+  OVPN_MASTER_USER: "admin"
+  OVPN_MASTER_PASSWORD: "admin"
+
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ovpn-ccd
+  namespace: potee
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ovpn-easyrsa
+  namespace: potee
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ovpn-admin
+  namespace: potee
+spec:
+  selector:
+    matchLabels:
+      app: ovpn-admin
+  template:
+    metadata:
+      labels:
+        app: ovpn-admin
+    spec:
+      containers:
+      - name: ovpn-admin
+        image: flant/ovpn-admin:2.0.1
+        command: 
+          - "/app/ovpn-admin"
+        envFrom:
+          - configMapRef:
+              name: ovpn-admin-env
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+          - containerPort: 8080
+        volumeMounts:
+          - name: ovpn-easyrsa
+            mountPath: /mnt/easyrsa
+          - name: ovpn-ccd
+            mountPath: /mnt/ccd
+      - name: openvpn
+        image: flant/ovpn-admin:openvpn-2.0.1
+        command: 
+          - "/etc/openvpn/setup/configure.sh"
+        envFrom:
+          - configMapRef:
+              name: openvpn-env
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        securityContext:
+          capabilities:
+            add:
+              - NET_ADMIN
+        ports:
+          - containerPort: 1194
+        volumeMounts:
+          - name: ovpn-easyrsa
+            mountPath: /etc/openvpn/easyrsa
+          - name: ovpn-ccd
+            mountPath: /etc/openvpn/ccd
+      volumes:
+        - name: ovpn-easyrsa
+          persistentVolumeClaim:
+            claimName: ovpn-easyrsa
+        - name: ovpn-ccd
+          persistentVolumeClaim:
+            claimName: ovpn-ccd
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openvpn-svc
+  namespace: potee
+spec:
+  type: LoadBalancer
+  selector:
+    app: ovpn-admin
+  ports:
+  - name: "openvpn"
+    port: 7777
+    targetPort: 1194
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ovpn-admin-svc
+  namespace: potee
+spec:
+  selector:
+    app: ovpn-admin
+  type: LoadBalancer
+  ports:
+  - name: ovpn-admin
+    port: 8080
+    targetPort: 8080   
+
+

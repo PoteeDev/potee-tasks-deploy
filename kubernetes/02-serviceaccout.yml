@@ -1,0 +1,41 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: task-manager
+  namespace: potee
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: task-manager-role
+  namespace: potee
+rules:
+  - apiGroups:
+    - ""
+    - apps
+    - autoscaling
+    - batch
+    - extensions
+    - policy
+    - rbac.authorization.k8s.io
+    resources:
+    - pods
+    - configmaps
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: task-manager-rolebinding
+  namespace: potee 
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: task-manager-role 
+subjects:
+- namespace: potee 
+  kind: ServiceAccount
+  name: task-manager
