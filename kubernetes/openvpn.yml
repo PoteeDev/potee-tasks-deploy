@@ -145,7 +145,7 @@ metadata:
 spec:
   selector:
     app: ovpn-admin
-  type: LoadBalancer
+  type: ClusterIP
   ports:
   - name: ovpn-admin
     port: 8080

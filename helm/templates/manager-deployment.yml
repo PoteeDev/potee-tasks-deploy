@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.manager.name }}
+  labels:
+    app: {{ .Values.manager.name }}
+spec:
+  {{ if not .Values.manager.autoscaling.enabled }}
+  replicas: {{ .Values.manager.replicaCount }}
+  {{ end }}
+  selector:
+    matchLabels:
+      app: {{ .Values.manager.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.manager.name }}
+    spec:
+      {{ with .Values.manager.imagePullSecrets }}
+      imagePullSecrets:
+        {{ toYaml . | nindent 8 }}
+      {{ end }}
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      securityContext:
+        {{ toYaml .Values.manager.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{ toYaml .Values.manager.securityContext | nindent 12 }}
+          image: "{{ .Values.manager.image.repository }}:{{ .Values.manager.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.manager.image.pullPolicy }}
+          env:
+            - name: SRV_KEY
+              value: "{{ .Values.srv_key }}"
+            - name: MINIO_ACCESS_KEY
+              value: "{{ .Values.minio.auth.rootUser }}"
+            - name: MINIO_HOST
+              value: "{{ .Release.Name }}-minio"
+            - name: MINIO_SECRET_KEY
+              value: "{{ .Values.minio.auth.rootPassword }}"
+          ports:
+            - name: http
+              containerPort: {{ .Values.manager.service.port }}
+              protocol: TCP
+          
+          resources:
+            {{ toYaml .Values.manager.resources | nindent 12 }}

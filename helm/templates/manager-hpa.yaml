@@ -1,0 +1,28 @@
+{{- if .Values.manager.autoscaling.enabled }}
+apiVersion: autoscaling/v2beta1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "potee-tasks.manager.fullname" . }}
+  labels:
+    {{- include "potee-tasks.manager.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "potee-tasks.manager.fullname" . }}
+  minReplicas: {{ .Values.manager.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.manager.autoscaling.maxReplicas }}
+  metrics:
+    {{- if .Values.manager.autoscaling.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: cpu
+        targetAverageUtilization: {{ .Values.manager.autoscaling.targetCPUUtilizationPercentage }}
+    {{- end }}
+    {{- if .Values.manager.autoscaling.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        targetAverageUtilization: {{ .Values.manager.autoscaling.targetMemoryUtilizationPercentage }}
+    {{- end }}
+{{- end }}

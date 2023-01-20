@@ -76,5 +76,6 @@ spec:
     - protocol: TCP
       name: minio-console
       port: 9001
+      targetPort: 9001
   selector:
     app: minio

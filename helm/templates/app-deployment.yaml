@@ -1,0 +1,59 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-configmap
+data:
+  config-file: |
+{{ .Values.default_config | toYaml | indent 4 }}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.app.name }}
+  labels:
+    app: {{ .Values.app.name }}
+spec:
+  {{ if not .Values.app.autoscaling.enabled }}
+  replicas: {{ .Values.app.replicaCount }}
+  {{ end }}
+  selector:
+    matchLabels:
+      app: {{ .Values.app.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.app.name }}
+    spec:
+      containers:
+        - name: {{ .Values.app.name }}
+          image: "explabs/potee-tasks:{{ .Values.app.image.tag }}"
+          imagePullPolicy: {{ .Values.app.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.app.service.port }}
+              protocol: TCP
+          resources:
+            {{ toYaml .Values.app.resources | nindent 12 }}
+          env:
+            - name: SRV_KEY
+              value: {{ .Values.srv_key | quote }}
+            - name: K3S_SRV
+              value: "{{ .Release.Name }}-manager"
+            - name: OVPN_HOST
+              value: "{{ .Release.Name }}-ovpn-admin"
+            - name: DB_HOST
+              value: "{{ .Release.Name }}-postgresql"
+            - name: DB_USER
+              value: {{ .Values.global.postgresql.auth.username | quote }}
+            - name: DB_PASSWORD
+              value: {{ .Values.global.postgresql.auth.password | quote }}
+          volumeMounts:
+            - name: app-config
+              mountPath: /app/config.yml
+              subPath: config-file
+      volumes:
+        - name: app-config
+          configMap:
+            name: app-configmap

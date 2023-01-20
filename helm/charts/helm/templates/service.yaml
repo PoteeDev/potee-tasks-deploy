@@ -1,0 +1,28 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-ovpn-admin
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 8000
+    protocol: TCP
+    targetPort: 8000
+  selector:
+    app: openvpn
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-openvpn
+spec:
+  type: LoadBalancer
+  selector:
+    app: openvpn
+  ports:
+  - name: openvpn
+    port: 7777
+    targetPort: 1194
